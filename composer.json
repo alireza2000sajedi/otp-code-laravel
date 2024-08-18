@@ -1,0 +1,45 @@
+{
+    "name": "ars/laravel-otp-code",
+    "description": "A Laravel package for generating, validating, and managing One-Time Passwords (OTPs) to enhance security in authentication workflows.",
+    "type": "library",
+    "license": "MIT",
+    "minimum-stability": "stable",
+    "require": {
+        "php": ">=8.0"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Ars\\Otp\\Providers\\OtpCodeServiceProvider"
+            ],
+            "aliases": {
+                "OtpCode": "Ars\\Otp\\Facades\\OtpCode"
+            }
+        }
+    },
+    "homepage": "https://github.com/alireza2000sajedi/otp-code-laravel",
+    "authors": [
+        {
+            "name": "Alireza Sajedi",
+            "email": "alireza2000sajedi@gmail.com",
+            "homepage": "https://github.com/alireza2000sajedi",
+            "role": "Developer"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Ars\\Otp\\": "src/"
+        }
+    },
+    "keywords": [
+        "laravel",
+        "otp",
+        "one-time password",
+        "2fa",
+        "two-factor authentication",
+        "authentication",
+        "security",
+        "php package",
+        "laravel package"
+    ]
+}
