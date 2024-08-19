@@ -15,8 +15,8 @@ class OtpCode implements ValidationRule
     /**
      * Create a new rule instance.
      *
-     * @param mixed $identifier
-     * @param mixed|null $salt
+     * @param  mixed  $identifier
+     * @param  mixed|null  $salt
      */
     public function __construct(mixed $identifier, mixed $salt = null)
     {
@@ -34,7 +34,7 @@ class OtpCode implements ValidationRule
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        $result = app(OtpRepository::class)->verify($this->identifier, $this->salt, $value);
+        $result = app(OtpRepository::class)->verify($this->identifier, $value, $this->salt);
 
         if (!$result) {
             $fail(__('otp_code::otp-code.invalid'))->translate();
