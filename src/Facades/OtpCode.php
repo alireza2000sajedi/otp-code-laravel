@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Facades;
+namespace Ars\Otp\Facades;
 
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @method static bool verify(string $identifier, int $code, string $salt = null)
+ * @method static bool verify(string $identifier, int|string $code, string $salt = null)
  * @method static array create(string $identifier, string $salt = null)
  * @method static int delete(string $identifier, string $salt = null)
  * @method static array|object|null get(string $identifier, string $salt = null)
