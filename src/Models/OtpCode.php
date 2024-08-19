@@ -2,6 +2,7 @@
 
 namespace Ars\Otp\Models;
 
+use Ars\Otp\Casts\OtpCodeCast;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -15,7 +16,6 @@ class OtpCode extends Model
     {
         parent::__construct($attributes);
         $this->setTable(config('otp-code.table_name'));
-        $this->setCastsCode();
     }
 
     protected $fillable = [
@@ -27,17 +27,9 @@ class OtpCode extends Model
     ];
 
     protected $casts = [
+        'code'       => OtpCodeCast::class,
+        'attempts'   => 'int',
         'expired_at' => 'datetime',
     ];
 
-    protected function setCastsCode()
-    {
-        $codeType = config('otp-code.code_type');
-
-        if (config('otp-code.encrypt_code')) {
-            $this->casts['code'] = 'encrypted:'.$codeType;
-        } else {
-            $this->casts['code'] = $codeType;
-        }
-    }
 }
