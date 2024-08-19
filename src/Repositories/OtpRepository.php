@@ -96,7 +96,7 @@ class OtpRepository
      * @param  int  $code
      * @return bool
      */
-    public function verify(string $identifier, int $code, string $salt = null): bool
+    public function verify(string $identifier, int|string $code, string $salt = null): bool
     {
         $salt = $salt ?: $this->defaultSalt;
         $otp = $this->get($identifier, $salt);
@@ -150,7 +150,7 @@ class OtpRepository
     {
         return match ($this->codeType) {
             'int', 'integer' => $this->generateRandomInteger($this->codeLength),
-            'string' => Str::random($this->codeLength),
+            'string' => strtoupper(Str::random($this->codeLength)),
         };
     }
 
