@@ -15,15 +15,17 @@ class OtpRepository
     protected Carbon $expiryTime;
     protected string $defaultSalt;
     protected Carbon $now;
+    protected bool $toArray;
 
     public function __construct()
     {
-        $this->codeType = config('otp-code.code_type');
-        $this->codeLength = config('otp-code.code_length');
-        $this->maxAttempts = config('otp-code.max_attempts');
-        $this->expiryTime = Carbon::now()->addMinutes(config('otp-code.expiry_time'));
+        $this->codeType = config('otp-code.code_type', 'integer');
+        $this->codeLength = config('otp-code.code_length', 4);
+        $this->maxAttempts = config('otp-code.max_attempts', 3);
+        $this->expiryTime = Carbon::now()->addMinutes(config('otp-code.expiry_time', 2));
         $this->defaultSalt = config('otp-code.default_salt', '');
         $this->now = Carbon::now();
+        $this->toArray = false;
     }
 
     /**
@@ -31,10 +33,10 @@ class OtpRepository
      *
      * @param  string  $identifier
      * @param  string|null  $salt
-     * @return array
+     * @return array|object|null
      * @throws Exception
      */
-    public function create(string $identifier, string $salt = null): array
+    public function create(string $identifier, string $salt = null): array|object|null
     {
         $salt = $salt ?: $this->defaultSalt;
 
@@ -44,13 +46,15 @@ class OtpRepository
         // Delete existing OTP codes for this identifier and salt
         $this->delete($identifier, $salt);
 
-        // Create and return the new OTP code
-        return OtpCode::query()->create([
+        // Create the new OTP code
+        $otpCode = OtpCode::query()->create([
             'identifier' => $identifier,
             'salt'       => $salt,
             'code'       => $code,
             'expired_at' => $this->expiryTime,
-        ])->toArray();
+        ]);
+
+        return $this->return($otpCode);
     }
 
     /**
@@ -73,7 +77,9 @@ class OtpRepository
             $query->where('attempts', '<', $this->maxAttempts);
         }
 
-        return $query->orderBy('created_at', 'desc')->first();
+        $otpCode = $query->orderBy('created_at', 'desc')->first();
+
+        return $this->return($otpCode);
     }
 
     /**
@@ -92,8 +98,8 @@ class OtpRepository
      * Verify the OTP code for the given identifier and salt.
      *
      * @param  string  $identifier
+     * @param  int|string  $code
      * @param  string|null  $salt
-     * @param  int  $code
      * @return bool
      */
     public function verify(string $identifier, int|string $code, string $salt = null): bool
@@ -167,5 +173,32 @@ class OtpRepository
         $max = (int) str_pad('9', $length, '9');
 
         return random_int($min, $max);
+    }
+
+    /**
+     * Return the OTP code as an array if required.
+     *
+     * @param object|null $otpCode
+     * @return array|object|null
+     */
+    protected function return(object|null $otpCode): array|object|null
+    {
+        if ($this->toArray && $otpCode) {
+            return $otpCode->toArray();
+        }
+
+        return $otpCode;
+    }
+
+    /**
+     * Enable returning OTP code as an array.
+     *
+     * @param bool $toArray
+     * @return $this
+     */
+    public function setToArray(bool $toArray): static
+    {
+        $this->toArray = $toArray;
+        return $this;
     }
 }
