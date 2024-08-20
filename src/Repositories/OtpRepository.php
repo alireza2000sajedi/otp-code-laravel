@@ -107,8 +107,15 @@ class OtpRepository
         $salt = $salt ?: $this->defaultSalt;
         $otp = $this->get($identifier, $salt);
 
-        if (!$otp || $otp->code != $code) {
-            $otp?->increment('attempts');
+        if (!$otp) {
+            return false;
+        }
+
+        // Handle OTP as array or object
+        $otpCode = is_array($otp) ? $otp['code'] : $otp->code;
+
+        if ($otpCode != $code) {
+            is_array($otp) ? OtpCode::query()->where('id', $otp['id'])->increment('attempts') : $otp->increment('attempts');
             return false;
         }
 
