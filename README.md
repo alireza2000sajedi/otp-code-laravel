@@ -54,7 +54,7 @@ To create an OTP, use the `create` method:
 ```php
 $otpRepository = new \Ars\Otp\Repositories\OtpRepository();
 $otp = $otpRepository->create('alireza2000sajedi@gmail.com');
-$code = $otp['code'];
+$code = $otp->code;
 ```
 
 #### Verifying an OTP
@@ -76,7 +76,7 @@ use Ars\Otp\Facades\OtpCode;
 
 // Create OTP
 $otp = OtpCode::create('alireza2000sajedi@gmail.com');
-$code = $otp['code'];
+$code = $otp->code;
 // Verify OTP
 $isValid = OtpCode::verify('alireza2000sajedi@gmail.com', 1234);
 ```
@@ -105,7 +105,7 @@ use Ars\Otp\Facades\OtpCode;
 
         $otp = OtpCode::create($email, $salt);
 
-        Notification::send($email, new OtpNotification($otp['code']));
+        Notification::send($email, new OtpNotification($otp->code));
     }
 
 ```
