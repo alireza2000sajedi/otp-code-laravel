@@ -2,10 +2,12 @@
     "name": "ars/laravel-otp-code",
     "description": "A Laravel package for generating, validating, and managing One-Time Passwords (OTPs) to enhance security in authentication workflows.",
     "type": "library",
+    "version": "1.2.0",
     "license": "MIT",
     "minimum-stability": "stable",
     "require": {
-        "php": ">=8.0"
+        "php": ">=8.0",
+        "illuminate/support": ">=10.0"
     },
     "extra": {
         "laravel": {

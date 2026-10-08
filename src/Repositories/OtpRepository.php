@@ -10,48 +10,47 @@ use Illuminate\Support\Str;
 class OtpRepository
 {
     protected string $codeType;
+
     protected int $codeLength;
+
     protected int $maxAttempts;
-    protected Carbon $expiryTime;
+
+    protected int $expiryMinutes;
+
     protected string $defaultSalt;
-    protected Carbon $now;
+
     protected bool $toArray;
 
     public function __construct()
     {
         $this->codeType = config('otp-code.code_type', 'integer');
-        $this->codeLength = config('otp-code.code_length', 4);
-        $this->maxAttempts = config('otp-code.max_attempts', 3);
-        $this->expiryTime = Carbon::now()->addMinutes(config('otp-code.expiry_time', 2));
-        $this->defaultSalt = config('otp-code.default_salt', '');
-        $this->now = Carbon::now();
+        $this->codeLength = (int) config('otp-code.code_length', 4);
+        $this->maxAttempts = (int) config('otp-code.max_attempts', 3);
+        $this->expiryMinutes = (int) config('otp-code.expiry_time', 2);
+        $this->defaultSalt = (string) config('otp-code.default_salt', '');
         $this->toArray = false;
     }
 
     /**
      * Create a new OTP code for the given identifier and salt.
      *
-     * @param  string  $identifier
-     * @param  string|null  $salt
      * @return array|object|null
+     *
      * @throws Exception
      */
-    public function create(string $identifier, string $salt = null): array|object|null
+    public function create(string $identifier, ?string $salt = null): array|object|null
     {
         $salt = $salt ?: $this->defaultSalt;
 
-        // Generate OTP code
         $code = $this->generateCode();
 
-        // Delete existing OTP codes for this identifier and salt
         $this->delete($identifier, $salt);
 
-        // Create the new OTP code
         $otpCode = OtpCode::query()->create([
             'identifier' => $identifier,
-            'salt'       => $salt,
-            'code'       => $code,
-            'expired_at' => $this->expiryTime,
+            'salt' => $salt,
+            'code' => $code,
+            'expired_at' => $this->expiresAt(),
         ]);
 
         return $this->return($otpCode);
@@ -60,62 +59,58 @@ class OtpRepository
     /**
      * Retrieve the latest valid OTP code for the given identifier and salt.
      *
-     * @param  string  $identifier
-     * @param  string|null  $salt
      * @return array|object|null
      */
-    public function get(string $identifier, string $salt = null): array|object|null
+    public function get(string $identifier, ?string $salt = null): array|object|null
     {
         $salt = $salt ?: $this->defaultSalt;
 
         $query = OtpCode::query()
             ->where('identifier', $identifier)
             ->where('salt', $salt)
-            ->where('expired_at', '>=', $this->now);
+            ->where('expired_at', '>=', Carbon::now());
 
         if ($this->maxAttempts > 0) {
             $query->where('attempts', '<', $this->maxAttempts);
         }
 
-        $otpCode = $query->orderBy('created_at', 'desc')->first();
+        $otpCode = $query->orderByDesc('created_at')->first();
 
         return $this->return($otpCode);
     }
 
     /**
      * Check if a valid OTP code exists for the given identifier and salt.
-     *
-     * @param  string  $identifier
-     * @param  string|null  $salt
-     * @return bool
      */
-    public function has(string $identifier, string $salt = null): bool
+    public function has(string $identifier, ?string $salt = null): bool
     {
         return (bool) $this->get($identifier, $salt);
     }
 
     /**
      * Verify the OTP code for the given identifier and salt.
-     *
-     * @param  string  $identifier
-     * @param  int|string  $code
-     * @param  string|null  $salt
-     * @return bool
      */
-    public function verify(string $identifier, int|string $code, string $salt = null): bool
+    public function verify(string $identifier, int|string $code, ?string $salt = null): bool
     {
         $salt = $salt ?: $this->defaultSalt;
         $otp = $this->get($identifier, $salt);
 
-        if (!$otp) {
+        if (! $otp) {
             return false;
         }
 
-        // Handle OTP as array or object
         $otpCode = is_array($otp) ? $otp['code'] : $otp->code;
+        $normalized = $this->normalizeCode($code);
 
-        if ($otpCode != $code) {
-            is_array($otp) ? OtpCode::query()->where('id', $otp['id'])->increment('attempts') : $otp->increment('attempts');
+        $matches = in_array($this->codeType, ['int', 'integer'], true)
+            ? (int) $otpCode === (int) $normalized
+            : (string) $otpCode === (string) $normalized;
+
+        if (! $matches) {
+            is_array($otp)
+                ? OtpCode::query()->where('id', $otp['id'])->increment('attempts')
+                : $otp->increment('attempts');
+
             return false;
         }
 
@@ -126,12 +121,8 @@ class OtpRepository
 
     /**
      * Purge all OTP codes for the given identifier and salt.
-     *
-     * @param  string  $identifier
-     * @param  string|null  $salt
-     * @return int
      */
-    public function delete(string $identifier, string $salt = null): int
+    public function delete(string $identifier, ?string $salt = null): int
     {
         $salt = $salt ?: $this->defaultSalt;
 
@@ -143,20 +134,17 @@ class OtpRepository
 
     /**
      * Purge all expired OTP codes.
-     *
-     * @return int
      */
     public function purgeExpiredCodes(): int
     {
         return OtpCode::query()
-            ->where('expired_at', '<', $this->now)
+            ->where('expired_at', '<', Carbon::now())
             ->delete();
     }
 
     /**
      * Generate an OTP code based on the configured type and length.
      *
-     * @return string|int
      * @throws Exception
      */
     protected function generateCode(): string|int
@@ -164,31 +152,46 @@ class OtpRepository
         return match ($this->codeType) {
             'int', 'integer' => $this->generateRandomInteger($this->codeLength),
             'string' => strtoupper(Str::random($this->codeLength)),
+            default => throw new Exception("Unsupported otp-code.code_type [{$this->codeType}]."),
         };
     }
 
     /**
-     * Generate a random integer of the specified length.
+     * Generate a random integer with exactly `$length` digits.
      *
-     * @param  int  $length
-     * @return int
      * @throws Exception
      */
     protected function generateRandomInteger(int $length): int
     {
-        $min = (int) str_pad('1', $length, '0') - 1;
-        $max = (int) str_pad('9', $length, '9');
+        $length = max(1, $length);
+        $min = 10 ** ($length - 1);
+        $max = (10 ** $length) - 1;
 
         return random_int($min, $max);
     }
 
     /**
-     * Return the OTP code as an array if required.
-     *
-     * @param object|null $otpCode
+     * Convert Persian / Arabic-Indic digits to ASCII before compare.
+     */
+    protected function normalizeCode(int|string $code): string
+    {
+        return strtr(trim((string) $code), [
+            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+            '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+            '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+        ]);
+    }
+
+    protected function expiresAt(): Carbon
+    {
+        return Carbon::now()->addMinutes($this->expiryMinutes);
+    }
+
+    /**
      * @return array|object|null
      */
-    protected function return(object|null $otpCode): array|object|null
+    protected function return(?object $otpCode): array|object|null
     {
         if ($this->toArray && $otpCode) {
             return $otpCode->toArray();
@@ -197,15 +200,10 @@ class OtpRepository
         return $otpCode;
     }
 
-    /**
-     * Enable returning OTP code as an array.
-     *
-     * @param bool $toArray
-     * @return $this
-     */
     public function setToArray(bool $toArray): static
     {
         $this->toArray = $toArray;
+
         return $this;
     }
 }

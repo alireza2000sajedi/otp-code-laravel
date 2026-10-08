@@ -10,6 +10,17 @@ This Laravel package offers a comprehensive solution for generating, storing, an
 - Optional OTP encryption for enhanced security.
 - Validation rules to ensure OTP integrity.
 - Seamless integration with Laravel applications.
+- Fresh `Carbon::now()` on every create/get/verify (safe for long-lived workers).
+- Exact-length integer codes (no shorter codes for `code_length`).
+- Persian / Arabic-Indic digit normalization on verify.
+
+## Changelog
+
+### 1.2.0
+- Fix stale expiry/now frozen in constructor (worker/Octane bug).
+- Fix integer generator so codes always match `code_length`.
+- Accept Eastern digits in `verify()`.
+- Bind repository as `scoped` instead of process-wide singleton.
 
 ## Requirements:
 

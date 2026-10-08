@@ -13,15 +13,10 @@ class OtpCodeServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Bind OtpRepository to the service container
-        $this->app->singleton(OtpRepository::class, function ($app) {
-            return new OtpRepository();
-        });
+        // Request/job scoped — never freeze Carbon::now() across long-lived workers.
+        $this->app->scoped(OtpRepository::class, fn (): OtpRepository => new OtpRepository);
 
-        // Bind 'otp-code' to an instance of OtpRepository
-        $this->app->bind('otp-code', function ($app) {
-            return $app->make(OtpRepository::class);
-        });
+        $this->app->bind('otp-code', fn ($app) => $app->make(OtpRepository::class));
     }
 
     /**
@@ -29,20 +24,16 @@ class OtpCodeServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Publish migration files
         $this->publishes([
-            __DIR__ . '/../../migrations' => database_path('migrations'),
+            __DIR__.'/../../migrations' => database_path('migrations'),
         ], 'migrations');
 
-        // Publish configuration file
         $this->publishes([
-            __DIR__ . '/../../config/otp-code.php' => config_path('otp-code.php'),
+            __DIR__.'/../../config/otp-code.php' => config_path('otp-code.php'),
         ], 'config');
 
-        // Load translations
-        $this->loadTranslationsFrom(__DIR__ . '/../../lang', 'otp_code');
+        $this->loadTranslationsFrom(__DIR__.'/../../lang', 'otp_code');
 
-        // Register commands
         $this->commands([
             OtpCodeClearExpiredCommand::class,
         ]);
